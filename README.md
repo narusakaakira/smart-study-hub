@@ -1,3 +1,8 @@
+PROJECT 100% CHAT GPT :)))
+
+
+
+
 run project
 
 download docker at https://www.docker.com/, 
