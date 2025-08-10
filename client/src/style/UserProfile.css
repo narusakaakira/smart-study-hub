@@ -1,0 +1,191 @@
+/* ===== Layout tổng ===== */
+/* ===== Layout tổng ===== */
+.user-profile-container {
+  height: 95vh;                  /* full chiều cao màn hình */
+  width: 100vw;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;            /* căn giữa theo chiều dọc */
+  align-items: center;                 /* căn giữa theo chiều ngang */
+  gap: 10px;
+  padding: 24px;
+  margin: 0 auto;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+}
+/* ===== Header (avatar + tiêu đề) ===== */
+.user-profile-header{
+  display:flex;
+  align-items:center;
+  justify-content:center;     /* căn giữa ngang */
+  gap:16px;
+  margin-bottom:12px;
+}
+
+.avatar-wrap{ position:relative; width:128px; height:128px; }
+.avatar{
+  width:128px; height:128px; border-radius:50%; object-fit:cover;
+  border:2px solid #e5e7eb; background:#f3f4f6;
+}
+.avatar-edit{
+  position:absolute; right:4px; bottom:4px;
+  width:28px; height:28px; border-radius:999px; display:grid; place-items:center;
+  background:#2563eb; color:#fff; box-shadow:0 2px 8px rgba(0,0,0,.15); cursor:pointer;
+}
+.avatar-edit input{ display:none; }
+.header-text h2{ margin:0 0 6px 0; }
+.muted{ font-size:12px; color:#6b7280; }
+
+/* ===== Card & kích thước nội dung trung tâm ===== */
+.card{
+  background:#fff; border:1px solid #e5e7eb; border-radius:14px;
+  box-shadow:0 6px 18px rgba(0,0,0,.04); padding:18px;
+}
+
+.user-profile-info.card,
+#profile-edit-form.card,
+.pw-card{
+  width:398px;               /* chiều rộng nội dung trung tâm */
+  max-width:92vw;
+}
+
+/* ===== Hàng nút phía dưới, căn giữa & cách trên một đoạn ===== */
+.user-profile-toolbar{
+  display:flex;
+  gap:10px;
+  justify-content:center;     /* căn giữa dãy nút */
+  margin-top:12px;            /* cách phần trên một đoạn nhỏ */
+  margin-bottom:16px;
+}
+
+/* ===== Nút ===== */
+.primary-btn,.secondary-btn,.logout-button,.ghost-btn{
+  padding:10px 14px; border-radius:10px; border:none; cursor:pointer;
+  font-weight:600; font-size:14px;
+  transition:transform .02s, box-shadow .2s, background-color .2s, opacity .2s;
+}
+.primary-btn{ background:#2563eb; color:#fff; }
+.primary-btn:hover{ background:#1d4ed8; }
+.secondary-btn{ background:#0ea5e9; color:#fff; }
+.secondary-btn:hover{ background:#0284c7; }
+.logout-button{ background:#ef4444; color:#fff; }
+.logout-button:hover{ background:#dc2626; opacity:.95; }
+.ghost-btn{ background:transparent; color:#111; border:1px solid #ddd; }
+.ghost-btn:hover{ background:#f7f7f7; }
+
+/* ===== Bảng thông tin (view) ===== */
+.user-profile-info .info-row{
+  display:flex; justify-content:space-between;
+  padding:10px 0; border-bottom:1px dashed #eee;
+}
+.user-profile-info .info-row:last-child{ border-bottom:none; }
+.user-profile-info span{ color:#6b7280; }
+.user-profile-info b{ color:#111; font-weight:600; }
+
+/* ===== Form edit / đổi mật khẩu ===== */
+/* .grid-2{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr));color:#111; gap:14px; } */
+.grid-2{ display: flex; flex-direction: column;gap: 2vh; }
+@media (max-width:720px){ .grid-2{ grid-template-columns:1fr; } }
+
+label{ display:block; font-size:14px; color:#374151; margin-bottom:6px; }
+input, select{
+  width:90%; padding:10px 12px; border-radius:10px;
+  border:1px solid #d1d5db; outline:none; font-size:14px; background:#f9fafb;
+}
+input:focus, select:focus{ border-color:#2563eb; background:#fff; }
+.right{ display:flex; gap:10px; justify-content:flex-end; margin-top:12px; }
+
+.pw-card{ margin-bottom:16px; }
+
+
+.radio-group {
+  display: flex;
+  gap: 2rem;
+  align-items: center;
+  margin-top: .25rem;
+}
+.radio-group input[type="radio"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #3b82f6; /* xanh dương */
+}
+.radio-group label { display: flex; gap: .5rem; align-items: center; }
+
+
+
+/* Text trong input/select/textarea luôn đen */
+.user-profile-container input,
+.user-profile-container select,
+.user-profile-container textarea {
+  color: #111 !important;
+  -webkit-text-fill-color: #111; /* fix Chrome/Safari & autofill */
+}
+
+/* Placeholder vẫn xám nhạt để phân biệt */
+.user-profile-container input::placeholder,
+.user-profile-container textarea::placeholder {
+  color: #9ca3af;
+  opacity: 1;
+}
+
+/* Trạng thái disabled/readonly: giữ màu đen, bỏ mờ */
+.user-profile-container input:disabled,
+.user-profile-container input[readonly],
+.user-profile-container select:disabled,
+.user-profile-container textarea:disabled {
+  color: #111 !important;
+  -webkit-text-fill-color: #111;
+  opacity: 1 !important;
+}
+
+/* Input ngày (Chrome/Safari) mặc định tô xám — ép về đen */
+.user-profile-container input[type="date"]::-webkit-datetime-edit,
+.user-profile-container input[type="date"]::-webkit-datetime-edit-text,
+.user-profile-container input[type="date"]::-webkit-datetime-edit-year-field,
+.user-profile-container input[type="date"]::-webkit-datetime-edit-month-field,
+.user-profile-container input[type="date"]::-webkit-datetime-edit-day-field {
+  color: #111;
+}
+
+/* Nếu có rule làm mờ toàn bộ .card hay .login-input thì vô hiệu */
+.user-profile-container .card input,
+.user-profile-container .card select,
+.user-profile-container .card textarea {
+  opacity: 1 !important;
+}
+
+/* Ô mật khẩu có nút mắt */
+.password-wrapper {
+  position: relative;
+}
+.password-wrapper input {
+  padding-right: 40px; /* chừa chỗ cho nút */
+}
+.password-toggle-btn {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 16px;
+  color: #6b7280;
+  line-height: 1;
+  padding: 2px 4px;
+}
+.password-toggle-btn:hover {
+  color: #374151;
+}
+
+.danger-btn{
+  padding:10px 14px;
+  border:none;
+  border-radius:10px;
+  background:#991b1b;   /* đỏ đậm */
+  color:#fff;
+  font-weight:600;
+  cursor:pointer;
+  transition:background-color .2s ease, opacity .2s ease;
+}
+.danger-btn:hover{ background:#7f1d1d; }
+.danger-btn:disabled{ opacity:.7; cursor:not-allowed; }

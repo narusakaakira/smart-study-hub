@@ -1,0 +1,124 @@
+/* Container phủ toàn màn hình */
+.register-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 95vh;
+  width: 100vw;
+  background-image: url('../assets/bg-login.jpg');
+  background-size: cover;
+  background-position: center;
+}
+
+/* Form đăng ký */
+.register-form {
+  background: white;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  width: 100%;
+  max-width: 420px;
+  box-sizing: border-box;
+}
+
+.register-form h2 {
+  text-align: center;
+  font-size: 1.8rem;
+  margin-bottom: 1.5rem;
+  color: #111827;
+}
+
+/* Input, select, button đều full width và đồng bộ style */
+.register-form input,
+.register-form select,
+.register-form button {
+  display: block;
+  width: 100%;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 1rem;
+  background-color: #f3f4f6; /* xám nhạt giống login */
+  color: #111827;
+  outline: none;
+  box-sizing: border-box;
+}
+
+/* Nút bấm */
+.register-form button {
+  background-color: #3b82f6;
+  color: white;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.25s ease;
+}
+
+.register-form button:hover {
+  background-color: #2563eb;
+}
+
+/* Radio group: giới tính */
+.radio-group {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.radio-group label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1rem;
+  color: #374151;
+  cursor: pointer;
+}
+
+/* Vòng tròn lớn hơn, chấm nhỏ hơn và nằm giữa */
+.register-form input[type="radio"] {
+  appearance: none;
+  width: 13px;
+  height: 13px;
+  border: 2px solid #3b82f6;
+  border-radius: 50%;
+  outline: none;
+  cursor: pointer;
+  position: relative;
+  background: white;
+}
+
+.register-form input[type="radio"]:checked::before {
+  content: "";
+  display: block;
+  width: 12px;
+  height: 12px;
+  background-color: #3b82f6;
+  border-radius: 50%;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+.auth-switch {
+  display: flex;
+  gap: .5rem;
+  justify-content: center;
+  align-items: center;
+  margin-top: 1rem;
+  font-size: 0.95rem;
+}
+
+.link-like {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: #2563eb;           /* xanh kiểu link */
+  text-decoration: underline;
+  font-weight: 600;
+}
+
+.link-like:hover { opacity: .85; }

@@ -1,0 +1,26 @@
+.navbar {
+  height:5nh;
+  justify-content: flex-end;
+  grid-area: nav;
+  float: right;
+  display: flex;
+  z-index: 100;
+  gap: 5vw;
+  margin: auto 4vw;
+}
+.navbar .nav-item {
+  text-decoration: none;
+  border: none;
+  color: white;
+  margin: auto 0;
+  transition: all 0.3s;
+  font-weight: 400;
+  cursor: pointer;
+  font-size: 1.2vw;
+
+  vertical-align: flex-start;
+}
+.navbar .nav-item:hover {
+  color: rgba(233, 231, 231, 0.397);
+  background-color: none;
+}
