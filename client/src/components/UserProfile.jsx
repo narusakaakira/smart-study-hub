@@ -1,13 +1,14 @@
+// client/src/components/UserProfile.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import "../style/UserProfile.css";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faEye, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
+import api from "../api";
 
-const API = "http://localhost:8000";
 const GENDERS = ["Nam", "Nữ", "Khác"];
 
-// Chuẩn hoá về yyyy-mm-dd cho <input type="date">
+// Chuẩn hoá yyyy-mm-dd cho <input type="date">
 const toISODate = (v) => {
   if (!v) return "";
   if (/^\d{4}$/.test(v)) return `${v}-01-01`;
@@ -53,7 +54,7 @@ export default function UserProfile() {
 
   const [deleting, setDeleting] = useState(false);
 
-  // lưu email nếu có
+  // Lưu email nếu có
   useMemo(() => {
     const fromState = location.state?.email;
     const fromStorage = localStorage.getItem("email");
@@ -62,31 +63,28 @@ export default function UserProfile() {
     return finalEmail;
   }, [location]);
 
-  const token = () => localStorage.getItem("token");
+  const hasToken = () => Boolean(localStorage.getItem("access_token"));
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
+    localStorage.removeItem("access_token");
     localStorage.removeItem("email");
     localStorage.removeItem("user");
-    window.dispatchEvent(new Event("auth-changed")); // (NEW)
+    window.dispatchEvent(new Event("auth-changed"));
     navigate("/login", { replace: true });
   };
 
   // ===== Tải hồ sơ =====
   useEffect(() => {
-    const tk = token();
-    if (!tk) {
+    if (!hasToken()) {
       navigate("/login", { replace: true });
       return;
     }
+    let revoked = null;
     setLoading(true);
-    fetch(`${API}/me`, { headers: { Authorization: `Bearer ${tk}` } })
-      .then(async (res) => {
-        if (res.status === 401) throw new Error("unauthorized");
-        if (!res.ok) throw new Error("fetch failed");
-        return res.json();
-      })
-      .then((data) => {
+
+    api
+      .get("/me")
+      .then(({ data }) => {
         setUser(data);
         localStorage.setItem("user", JSON.stringify(data));
         setForm({
@@ -101,11 +99,14 @@ export default function UserProfile() {
         if (data?.has_avatar) fetchAvatar();
         else setAvatarUrl(null);
       })
-      .catch(() => navigate("/login", { replace: true }))
+      .catch((err) => {
+        if (err?.response?.status === 401) handleLogout();
+        else navigate("/login", { replace: true });
+      })
       .finally(() => setLoading(false));
 
     return () => {
-      if (avatarUrl) URL.revokeObjectURL(avatarUrl);
+      if (revoked) URL.revokeObjectURL(revoked);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate]);
@@ -113,11 +114,8 @@ export default function UserProfile() {
   // ===== Avatar =====
   const fetchAvatar = async () => {
     try {
-      const res = await fetch(`${API}/me/avatar`, {
-        headers: { Authorization: `Bearer ${token()}` },
-      });
-      if (!res.ok) throw new Error();
-      const blob = await res.blob();
+      const res = await api.get("/me/avatar", { responseType: "blob" });
+      const blob = res.data;
       const url = URL.createObjectURL(blob);
       if (avatarUrl) URL.revokeObjectURL(avatarUrl);
       setAvatarUrl(url);
@@ -135,20 +133,13 @@ export default function UserProfile() {
 
     setUploading(true);
     try {
-      const res = await fetch(`${API}/me/avatar`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token()}` },
-        body: fd,
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.detail || "Upload thất bại");
-      }
+      await api.post("/me/avatar", fd); // axios tự set multipart/form-data cho FormData
       await fetchAvatar();
       alert("Cập nhật ảnh đại diện thành công!");
       setUser((u) => ({ ...(u || {}), has_avatar: true }));
     } catch (err) {
-      alert(err.message);
+      const msg = err?.response?.data?.detail || "Upload thất bại";
+      alert(msg);
     } finally {
       setUploading(false);
       e.target.value = "";
@@ -183,25 +174,15 @@ export default function UserProfile() {
       return alert("Ngày sinh không hợp lệ (yyyy-mm-dd)");
 
     try {
-      const res = await fetch(`${API}/me`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token()}`,
-        },
-        body: JSON.stringify(form),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.detail || "Cập nhật thất bại");
-
+      const { data } = await api.put("/me", form);
       setUser(data);
       localStorage.setItem("user", JSON.stringify(data));
-      window.dispatchEvent(new Event("auth-changed")); // (NEW)
-
+      window.dispatchEvent(new Event("auth-changed"));
       setMode("view");
       alert("Đã cập nhật thông tin!");
     } catch (err) {
-      alert(err.message);
+      const msg = err?.response?.data?.detail || "Cập nhật thất bại";
+      alert(msg);
     }
   };
 
@@ -219,29 +200,23 @@ export default function UserProfile() {
       return alert("Xác nhận mật khẩu không khớp");
 
     try {
-      const res = await fetch(`${API}/me/password`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token()}`,
-        },
-        body: JSON.stringify({
-          current_password: pwForm.current_password,
-          new_password: pwForm.new_password,
-        }),
+      await api.post("/me/password", {
+        current_password: pwForm.current_password,
+        new_password: pwForm.new_password,
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.detail || "Đổi mật khẩu thất bại");
       alert("Đổi mật khẩu thành công!");
       closePwForm();
     } catch (err) {
-      alert(err.message);
+      const msg = err?.response?.data?.detail || "Đổi mật khẩu thất bại";
+      alert(msg);
     }
   };
 
   // ===== Xóa tài khoản =====
   const onDeleteAccount = async () => {
-    const ok = window.confirm("Bạn chắc chắn muốn xóa tài khoản? Hành động này không thể hoàn tác.");
+    const ok = window.confirm(
+      "Bạn chắc chắn muốn xóa tài khoản? Hành động này không thể hoàn tác."
+    );
     if (!ok) return;
 
     const pwd = window.prompt("Nhập mật khẩu hiện tại để xác nhận:");
@@ -249,24 +224,15 @@ export default function UserProfile() {
 
     try {
       setDeleting(true);
-      const res = await fetch(`${API}/me`, {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token()}`,
-        },
-        body: JSON.stringify({ current_password: pwd }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.detail || "Xóa tài khoản thất bại");
-
+      await api.delete("/me", { data: { current_password: pwd } });
       alert("Tài khoản đã bị xóa.");
-      localStorage.removeItem("token");
+      localStorage.removeItem("access_token");
       localStorage.removeItem("email");
       localStorage.removeItem("user");
       navigate("/register", { replace: true });
     } catch (err) {
-      alert(err.message);
+      const msg = err?.response?.data?.detail || "Xóa tài khoản thất bại";
+      alert(msg);
     } finally {
       setDeleting(false);
     }
@@ -286,7 +252,9 @@ export default function UserProfile() {
             width={128}
             height={128}
             className="avatar"
-            onError={(e) => (e.currentTarget.src = "https://via.placeholder.com/128?text=Avatar")}
+            onError={(e) =>
+              (e.currentTarget.src = "https://via.placeholder.com/128?text=Avatar")
+            }
           />
           <label className="avatar-edit" title="Đổi ảnh">
             <input type="file" accept="image/*" onChange={onUpload} disabled={uploading} />
@@ -332,9 +300,7 @@ export default function UserProfile() {
                 <input
                   type={showPw.next ? "text" : "password"}
                   value={pwForm.new_password}
-                  onChange={(e) =>
-                    setPwForm((p) => ({ ...p, new_password: e.target.value }))
-                  }
+                  onChange={(e) => setPwForm((p) => ({ ...p, new_password: e.target.value }))}
                 />
                 <button
                   type="button"
@@ -354,9 +320,7 @@ export default function UserProfile() {
                 <input
                   type={showPw.confirm ? "text" : "password"}
                   value={pwForm.confirm}
-                  onChange={(e) =>
-                    setPwForm((p) => ({ ...p, confirm: e.target.value }))
-                  }
+                  onChange={(e) => setPwForm((p) => ({ ...p, confirm: e.target.value }))}
                 />
                 <button
                   type="button"
@@ -398,11 +362,7 @@ export default function UserProfile() {
           </div>
 
           <div className="user-profile-toolbar">
-            <button
-              type="button"
-              className="secondary-btn"
-              onClick={() => setPwOpen((v) => !v)}
-            >
+            <button type="button" className="secondary-btn" onClick={() => setPwOpen((v) => !v)}>
               Thay đổi mật khẩu
             </button>
 
@@ -414,21 +374,11 @@ export default function UserProfile() {
               Chỉnh sửa thông tin
             </button>
 
-            <button
-              type="button"
-              className="logout-button"
-              onClick={handleLogout}
-            >
+            <button type="button" className="logout-button" onClick={handleLogout}>
               Đăng xuất
             </button>
 
-            {/* Nút xóa tài khoản */}
-            <button
-              type="button"
-              className="danger-btn"
-              onClick={onDeleteAccount}
-              disabled={deleting}
-            >
+            <button type="button" className="danger-btn" onClick={onDeleteAccount} disabled={deleting}>
               {deleting ? "Đang xóa..." : "Xóa tài khoản"}
             </button>
           </div>

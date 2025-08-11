@@ -2,35 +2,30 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "../style/Login.css"; // tái dùng style form
+import api from "../api";
 
-const API = "http://localhost:8000";
 
 export default function ForgotPassword() {
-  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [devLink, setDevLink] = useState("");
 
-  const submit = async (e) => {
+  async function handleSubmit(e) {
     e.preventDefault();
     if (loading) return;
     setLoading(true);
     try {
-      const res = await fetch(`${API}/password/forgot`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.detail || "Yêu cầu thất bại");
+      const res = await api.post("/password/forgot", { email });
+      const data = res.data;
       alert(data.message || "Nếu email tồn tại, chúng tôi đã gửi hướng dẫn.");
-      if (data.dev_reset_link) setDevLink(data.dev_reset_link); // tiện test
+      if (data.dev_reset_link) setDevLink(data.dev_reset_link);
     } catch (err) {
-      alert(err.message);
+      console.error(err);
+      alert("Yêu cầu thất bại");
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   return (
     <div className="login-container">

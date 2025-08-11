@@ -4,12 +4,12 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import "../style/Login.css";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faEye, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
-
-const API = "http://localhost:8000";
+import api from "../api";
 
 export default function ResetPassword() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
+
   const [token, setToken] = useState("");
   const [pwd, setPwd] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -18,30 +18,25 @@ export default function ResetPassword() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const t = params.get("token") || "";
-    setToken(t);
+    setToken(params.get("token") || "");
   }, [params]);
 
   const submit = async (e) => {
     e.preventDefault();
     if (loading) return;
-    if (!token) return alert("Thiếu token đặt lại");
-    if (pwd.length < 6) return alert("Mật khẩu tối thiểu 6 ký tự");
-    if (pwd !== confirm) return alert("Xác nhận mật khẩu không khớp");
+
+    if (!token) return alert("Thiếu token đặt lại.");
+    if (pwd.length < 6) return alert("Mật khẩu tối thiểu 6 ký tự.");
+    if (pwd !== confirm) return alert("Xác nhận mật khẩu không khớp.");
 
     setLoading(true);
     try {
-      const res = await fetch(`${API}/password/reset`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, new_password: pwd }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.detail || "Đặt lại mật khẩu thất bại");
+      await api.post("/password/reset", { token, new_password: pwd });
       alert("Đặt lại mật khẩu thành công! Hãy đăng nhập.");
       navigate("/login", { replace: true });
     } catch (err) {
-      alert(err.message);
+      const msg = err?.response?.data?.detail || "Đặt lại mật khẩu thất bại";
+      alert(msg);
     } finally {
       setLoading(false);
     }

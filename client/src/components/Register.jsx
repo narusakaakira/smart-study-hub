@@ -1,10 +1,10 @@
+// src/components/Register.jsx
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "../style/Register.css";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faEye, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
-
-const API = "http://localhost:8000";
+import api from "../api";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -21,12 +21,11 @@ export default function Register() {
     school: "",
   });
 
-  // dùng đúng tên state như bên login
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
   };
 
   const handleSubmit = async (e) => {
@@ -36,34 +35,29 @@ export default function Register() {
 
     try {
       // 1) Đăng ký
-      const reg = await fetch(`${API}/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+      await api.post("/register", form);
+
+      // 2) Đăng nhập tự động -> lấy token
+      const loginRes = await api.post("/login", {
+        email: form.email,
+        password: form.password,
       });
-      if (!reg.ok) {
-        const err = await reg.json().catch(() => ({}));
-        throw new Error(err.detail || "Đăng ký thất bại");
-      }
+      const token = loginRes.data?.access_token;
+      if (!token) throw new Error("Đăng nhập tự động thất bại (thiếu access_token)");
 
-      // 2) Đăng nhập lấy token
-      const login = await fetch(`${API}/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: form.email, password: form.password }),
-      });
-      if (!login.ok) throw new Error("Đăng nhập tự động thất bại");
-
-      const { access_token } = await login.json();
-
-      // 3) Lưu & chuyển tới trang hồ sơ
-      localStorage.setItem("token", access_token);
+      // 3) Lưu token + lấy thông tin user
+      localStorage.setItem("access_token", token);
       localStorage.setItem("email", form.email);
-      localStorage.setItem("user", JSON.stringify({ email: form.email }));
 
+      const meRes = await api.get("/me");
+      localStorage.setItem("user", JSON.stringify(meRes.data));
+
+      // 4) Thông báo & điều hướng
+      window.dispatchEvent(new Event("auth-changed"));
       navigate("/userprofile", { replace: true, state: { email: form.email } });
     } catch (err) {
-      alert(err.message);
+      const msg = err?.response?.data?.detail || err.message || "Đăng ký thất bại";
+      alert(msg);
     } finally {
       setLoading(false);
     }
@@ -84,7 +78,7 @@ export default function Register() {
           required
         />
 
-        {/* Ô mật khẩu với nút hiện/ẩn giống login */}
+        {/* Mật khẩu */}
         <div className="password-wrapper">
           <input
             type={showPassword ? "text" : "password"}

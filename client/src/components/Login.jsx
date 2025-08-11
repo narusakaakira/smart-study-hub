@@ -4,64 +4,42 @@ import "../style/Login.css";
 
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faEye, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
+import api from "../api";
 
-const Login = () => {
+export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
-  const handleSubmit = async (e) => {
+  async function handleSubmit(e) {
     e.preventDefault();
     if (loading) return;
-
     setLoading(true);
     try {
-      // 1) gọi /login để lấy token
-      const res = await fetch("http://localhost:8000/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-
-      if (!res.ok) throw new Error("Đăng nhập thất bại");
-
-      const data = await res.json();
-      const token = data?.access_token;
+      // 1) login
+      const res = await api.post("/login", { email, password });
+      const token = res.data?.access_token;
       if (!token) throw new Error("Thiếu access_token");
+      localStorage.setItem("access_token", token);
+      window.dispatchEvent(new Event("auth-changed"));
 
-      // 2) lưu token + phát tín hiệu để Navbar/Home cập nhật ngay
-      localStorage.setItem("token", token);
-      window.dispatchEvent(new Event("auth-changed")); // NEW
+      // 2) lấy thông tin user
+      const meRes = await api.get("/me");
+      localStorage.setItem("user", JSON.stringify(meRes.data));
+      window.dispatchEvent(new Event("auth-changed"));
 
-      // 3) preload thông tin user (để lấy tên hiển thị)
-      try {
-        const me = await fetch("http://localhost:8000/me", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (me.ok) {
-          const user = await me.json();
-          localStorage.setItem("user", JSON.stringify(user));
-          window.dispatchEvent(new Event("auth-changed")); // NEW: cập nhật tên
-        }
-      } catch {
-        // không critical, có thể bỏ qua
-      }
-
-      // 4) điều hướng: quay lại trang bị chặn hoặc sang /userprofile
+      // 3) điều hướng
       const redirectTo = location.state?.from?.pathname || "/userprofile";
       navigate(redirectTo, { replace: true });
-
     } catch (err) {
       console.error(err);
-      alert("Đăng nhập thất bại! Vui lòng kiểm tra lại email/mật khẩu.");
+      alert("Đăng nhập thất bại! Vui lòng kiểm tra email/mật khẩu.");
     } finally {
       setLoading(false);
     }
-  };
-
+  }
   return (
     <div className="login-container">
       <form className="login-form" onSubmit={handleSubmit}>
@@ -116,4 +94,3 @@ const Login = () => {
   );
 };
 
-export default Login;
