@@ -248,8 +248,8 @@ class ForgotPasswordReq(BaseModel):
     email: EmailStr
 
 class ResetPasswordReq(BaseModel):
-    token: constr(min_length=20)
-    new_password: constr(min_length=6)
+    token: constr(min_length=20)        # type: ignore[reportInvalidTypeForm]
+    new_password: constr(min_length=6)  # type: ignore[reportInvalidTypeForm]
 
 @router.post("/password/forgot")
 def forgot_password(

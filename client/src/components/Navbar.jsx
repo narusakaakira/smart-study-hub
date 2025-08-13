@@ -34,19 +34,14 @@ export default function Navbar() {
     };
     }, []);
 
-  const goAccount = () => navigate("/userprofile");
 
-  const firstName =
-    auth.user?.full_name?.trim()?.split(" ")?.slice(-1)[0] || "";
 
   return (
     <nav className="navbar">
       <Link to="/" className="nav-item">TRANG CHỦ</Link>
 
       {auth.token ? (
-        <button className="nav-item nav-account" onClick={goAccount}>
-          TÀI KHOẢN
-        </button>
+        <Link to="/userprofile" className="nav-item">TÀI KHOẢN</Link>
       ) : (
         <Link to="/login" className="nav-item">ĐĂNG NHẬP</Link>
       )}
