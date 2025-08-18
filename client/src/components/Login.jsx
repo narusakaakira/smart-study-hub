@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import "../style/Login.css";
-
+import axios from "axios";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faEye, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
+import "../style/Login.css";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -20,33 +20,23 @@ const Login = () => {
     setLoading(true);
     try {
       // 1) gọi /login để lấy token
-      const res = await fetch("http://localhost:8000/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-
-      if (!res.ok) throw new Error("Đăng nhập thất bại");
-
-      const data = await res.json();
-      const token = data?.access_token;
+      const res = await axios.post("/login", { email, password });
+      const token = res.data?.access_token;
       if (!token) throw new Error("Thiếu access_token");
 
       // 2) lưu token + phát tín hiệu để Navbar/Home cập nhật ngay
       localStorage.setItem("token", token);
-      window.dispatchEvent(new Event("auth-changed")); // NEW
+      window.dispatchEvent(new Event("auth-changed"));
 
       // 3) preload thông tin user (để lấy tên hiển thị)
       try {
-        const me = await fetch("http://localhost:8000/me", {
+        const meRes = await axios.get("/me", {
           headers: { Authorization: `Bearer ${token}` },
         });
-        if (me.ok) {
-          const user = await me.json();
-          localStorage.setItem("user", JSON.stringify(user));
-          window.dispatchEvent(new Event("auth-changed")); // NEW: cập nhật tên
-        }
-      } catch {
+        const user = meRes.data;
+        localStorage.setItem("user", JSON.stringify(user));
+        window.dispatchEvent(new Event("auth-changed"));
+      } catch (_) {
         // không critical, có thể bỏ qua
       }
 
@@ -55,12 +45,19 @@ const Login = () => {
       navigate(redirectTo, { replace: true });
 
     } catch (err) {
-      console.error(err);
-      alert("Đăng nhập thất bại! Vui lòng kiểm tra lại email/mật khẩu.");
+      const d = err?.response?.data;
+      const msg =
+        (typeof d === "string" && d) ||
+        d?.detail ||
+        d?.message ||
+        "Đăng nhập thất bại! Vui lòng kiểm tra lại email/mật khẩu.";
+      console.error("login error:", err);
+      alert(msg);
     } finally {
       setLoading(false);
     }
   };
+
 
   return (
     <div className="login-container">

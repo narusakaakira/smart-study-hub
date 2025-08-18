@@ -1,15 +1,15 @@
 // src/components/ResetPassword.jsx
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import axios from "axios";
 import "../style/Login.css";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faEye, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
 
-const API = "http://localhost:8000";
-
 export default function ResetPassword() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
+
   const [token, setToken] = useState("");
   const [pwd, setPwd] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -18,8 +18,7 @@ export default function ResetPassword() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const t = params.get("token") || "";
-    setToken(t);
+    setToken(params.get("token") || "");
   }, [params]);
 
   const submit = async (e) => {
@@ -31,17 +30,22 @@ export default function ResetPassword() {
 
     setLoading(true);
     try {
-      const res = await fetch(`${API}/password/reset`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, new_password: pwd }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.detail || "Đặt lại mật khẩu thất bại");
+      // axios đã có baseURL ở App.jsx: axios.defaults.baseURL = import.meta.env.VITE_API_URL
+      await axios.post("/password/reset", { token, new_password: pwd });
+
       alert("Đặt lại mật khẩu thành công! Hãy đăng nhập.");
       navigate("/login", { replace: true });
     } catch (err) {
-      alert(err.message);
+      const d = err?.response?.data;
+      const msg =
+        (typeof d === "string" && d) ||
+        d?.detail ||
+        d?.message ||
+        (Array.isArray(d?.detail) && d.detail.map((x) => x?.msg).join("\n")) ||
+        err.message ||
+        "Đặt lại mật khẩu thất bại";
+      alert(msg);
+      console.log("axios error:", { status: err.response?.status, data: d });
     } finally {
       setLoading(false);
     }

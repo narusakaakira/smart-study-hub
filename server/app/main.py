@@ -10,10 +10,16 @@ app.include_router(router)
 # tạo bảng nếu chưa có
 Base.metadata.create_all(bind=engine)
 
+origins = [
+    "http://localhost:3000", 
+    "http://127.0.0.1:3000",
+]
+
 # CORS (giữ như bạn cấu hình)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],   # khi deploy nhớ hạn chế domain hoặc ["http://localhost:3000"] nếu frontend chạy cổng 3000
+    allow_origins=origins,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )

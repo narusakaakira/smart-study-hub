@@ -1,9 +1,8 @@
 // src/components/ForgotPassword.jsx
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
 import "../style/Login.css"; // tái dùng style form
-
-const API = "http://localhost:8000";
 
 export default function ForgotPassword() {
   const navigate = useNavigate();
@@ -16,17 +15,21 @@ export default function ForgotPassword() {
     if (loading) return;
     setLoading(true);
     try {
-      const res = await fetch(`${API}/password/forgot`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.detail || "Yêu cầu thất bại");
+      const res = await axios.post("/password/forgot", { email });
+      const data = res.data; // axios đã parse JSON
+
       alert(data.message || "Nếu email tồn tại, chúng tôi đã gửi hướng dẫn.");
       if (data.dev_reset_link) setDevLink(data.dev_reset_link); // tiện test
     } catch (err) {
-      alert(err.message);
+      const d = err?.response?.data;
+      const msg =
+        (typeof d === "string" && d) ||
+        d?.detail ||
+        d?.message ||
+        err.message ||
+        "Yêu cầu thất bại";
+      alert(msg);
+      console.log("forgot error:", { status: err.response?.status, data: d });
     } finally {
       setLoading(false);
     }

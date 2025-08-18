@@ -1,6 +1,5 @@
 
 
-/* reset để #root chiếm full viewport, khóa scroll tổng */
 html, body, #root {
   height: 100%;
   width: 100%;

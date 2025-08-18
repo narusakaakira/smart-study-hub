@@ -1,13 +1,13 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import "../style/UserProfile.css";
+import axios from "axios";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faEye, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
+import "../style/UserProfile.css";
 
-const API = "http://localhost:8000";
 const GENDERS = ["Nam", "Nữ", "Khác"];
 
-// Chuẩn hoá về yyyy-mm-dd cho <input type="date">
+// Chuẩn hoá yyyy-mm-dd cho <input type="date">
 const toISODate = (v) => {
   if (!v) return "";
   if (/^\d{4}$/.test(v)) return `${v}-01-01`;
@@ -25,6 +25,8 @@ export default function UserProfile() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const [mode, setMode] = useState("view"); // 'view' | 'edit' | 'changePwd'
+
   const [showPw, setShowPw] = useState({ current: false, next: false, confirm: false });
 
   const [user, setUser] = useState(null);
@@ -33,7 +35,6 @@ export default function UserProfile() {
   const [avatarUrl, setAvatarUrl] = useState(null);
   const [uploading, setUploading] = useState(false);
 
-  const [mode, setMode] = useState("view"); // 'view' | 'edit'
   const [form, setForm] = useState({
     full_name: "",
     phone: "",
@@ -44,7 +45,6 @@ export default function UserProfile() {
     school: "",
   });
 
-  const [pwOpen, setPwOpen] = useState(false);
   const [pwForm, setPwForm] = useState({
     current_password: "",
     new_password: "",
@@ -68,7 +68,7 @@ export default function UserProfile() {
     localStorage.removeItem("token");
     localStorage.removeItem("email");
     localStorage.removeItem("user");
-    window.dispatchEvent(new Event("auth-changed")); // (NEW)
+    window.dispatchEvent(new Event("auth-changed"));
     navigate("/login", { replace: true });
   };
 
@@ -80,13 +80,11 @@ export default function UserProfile() {
       return;
     }
     setLoading(true);
-    fetch(`${API}/me`, { headers: { Authorization: `Bearer ${tk}` } })
-      .then(async (res) => {
-        if (res.status === 401) throw new Error("unauthorized");
-        if (!res.ok) throw new Error("fetch failed");
-        return res.json();
-      })
-      .then((data) => {
+    axios
+      .get("/me", { headers: { Authorization: `Bearer ${tk}` } })
+      .then((res) => {
+        const data = res.data;
+
         setUser(data);
         localStorage.setItem("user", JSON.stringify(data));
         setForm({
@@ -98,10 +96,18 @@ export default function UserProfile() {
           province: data.province || "",
           school: data.school || "",
         });
+
         if (data?.has_avatar) fetchAvatar();
         else setAvatarUrl(null);
       })
-      .catch(() => navigate("/login", { replace: true }))
+      .catch((err) => {
+        if (err.response && err.response.status === 401) {
+          console.error("unauthorized");
+        } else {
+          console.error("fetch failed", err);
+        }
+        navigate("/login", { replace: true });
+      })
       .finally(() => setLoading(false));
 
     return () => {
@@ -113,12 +119,11 @@ export default function UserProfile() {
   // ===== Avatar =====
   const fetchAvatar = async () => {
     try {
-      const res = await fetch(`${API}/me/avatar`, {
+      const res = await axios.get("/me/avatar", {
         headers: { Authorization: `Bearer ${token()}` },
+        responseType: "blob",
       });
-      if (!res.ok) throw new Error();
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
+      const url = URL.createObjectURL(res.data);
       if (avatarUrl) URL.revokeObjectURL(avatarUrl);
       setAvatarUrl(url);
     } catch {
@@ -135,20 +140,15 @@ export default function UserProfile() {
 
     setUploading(true);
     try {
-      const res = await fetch(`${API}/me/avatar`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token()}` },
-        body: fd,
+      await axios.post("/me/avatar", fd, {
+        headers: { Authorization: `Bearer ${token()}` }, // axios tự set multipart/form-data
       });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.detail || "Upload thất bại");
-      }
       await fetchAvatar();
       alert("Cập nhật ảnh đại diện thành công!");
       setUser((u) => ({ ...(u || {}), has_avatar: true }));
     } catch (err) {
-      alert(err.message);
+      const d = err?.response?.data;
+      alert(d?.detail || err.message || "Upload thất bại");
     } finally {
       setUploading(false);
       e.target.value = "";
@@ -183,33 +183,28 @@ export default function UserProfile() {
       return alert("Ngày sinh không hợp lệ (yyyy-mm-dd)");
 
     try {
-      const res = await fetch(`${API}/me`, {
-        method: "PUT",
+      const res = await axios.put("/me", form, {
         headers: {
-          "Content-Type": "application/json",
           Authorization: `Bearer ${token()}`,
         },
-        body: JSON.stringify(form),
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.detail || "Cập nhật thất bại");
+      const data = res.data;
 
       setUser(data);
       localStorage.setItem("user", JSON.stringify(data));
-      window.dispatchEvent(new Event("auth-changed")); // (NEW)
+      window.dispatchEvent(new Event("auth-changed"));
 
       setMode("view");
       alert("Đã cập nhật thông tin!");
     } catch (err) {
-      alert(err.message);
+      const d = err?.response?.data;
+      alert(d?.detail || err.message || "Cập nhật thất bại");
     }
   };
 
   // ===== Đổi mật khẩu =====
-  const closePwForm = () => {
+  const resetPwForm = () =>
     setPwForm({ current_password: "", new_password: "", confirm: "" });
-    setPwOpen(false);
-  };
 
   const onChangePassword = async (e) => {
     e.preventDefault();
@@ -219,29 +214,28 @@ export default function UserProfile() {
       return alert("Xác nhận mật khẩu không khớp");
 
     try {
-      const res = await fetch(`${API}/me/password`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token()}`,
-        },
-        body: JSON.stringify({
+      await axios.post(
+        "/me/password",
+        {
           current_password: pwForm.current_password,
           new_password: pwForm.new_password,
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.detail || "Đổi mật khẩu thất bại");
+        },
+        { headers: { Authorization: `Bearer ${token()}` } }
+      );
       alert("Đổi mật khẩu thành công!");
-      closePwForm();
+      resetPwForm();
+      setMode("view");
     } catch (err) {
-      alert(err.message);
+      const d = err?.response?.data;
+      alert(d?.detail || err.message || "Đổi mật khẩu thất bại");
     }
   };
 
   // ===== Xóa tài khoản =====
   const onDeleteAccount = async () => {
-    const ok = window.confirm("Bạn chắc chắn muốn xóa tài khoản? Hành động này không thể hoàn tác.");
+    const ok = window.confirm(
+      "Bạn chắc chắn muốn xóa tài khoản? Hành động này không thể hoàn tác."
+    );
     if (!ok) return;
 
     const pwd = window.prompt("Nhập mật khẩu hiện tại để xác nhận:");
@@ -249,16 +243,10 @@ export default function UserProfile() {
 
     try {
       setDeleting(true);
-      const res = await fetch(`${API}/me`, {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token()}`,
-        },
-        body: JSON.stringify({ current_password: pwd }),
+      await axios.delete("/me", {
+        headers: { Authorization: `Bearer ${token()}` },
+        data: { current_password: pwd }, // body cho DELETE
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.detail || "Xóa tài khoản thất bại");
 
       alert("Tài khoản đã bị xóa.");
       localStorage.removeItem("token");
@@ -266,7 +254,8 @@ export default function UserProfile() {
       localStorage.removeItem("user");
       navigate("/register", { replace: true });
     } catch (err) {
-      alert(err.message);
+      const d = err?.response?.data;
+      alert(d?.detail || err.message || "Xóa tài khoản thất bại");
     } finally {
       setDeleting(false);
     }
@@ -286,7 +275,9 @@ export default function UserProfile() {
             width={128}
             height={128}
             className="avatar"
-            onError={(e) => (e.currentTarget.src = "https://via.placeholder.com/128?text=Avatar")}
+            onError={(e) =>
+              (e.currentTarget.src = "https://via.placeholder.com/128?text=Avatar")
+            }
           />
           <label className="avatar-edit" title="Đổi ảnh">
             <input type="file" accept="image/*" onChange={onUpload} disabled={uploading} />
@@ -295,94 +286,18 @@ export default function UserProfile() {
         </div>
 
         <div className="header-text">
-          <h2>{mode === "view" ? "Thông tin cá nhân" : "Chỉnh sửa thông tin"}</h2>
+          <h2>
+            {mode === "view"
+              ? "Thông tin cá nhân"
+              : mode === "edit"
+              ? "Chỉnh sửa thông tin"
+              : "Đổi mật khẩu"}
+          </h2>
           {uploading && <div className="muted">Đang tải ảnh lên…</div>}
         </div>
       </div>
 
-      {/* Đổi mật khẩu */}
-      {pwOpen && mode === "view" && (
-        <form className="card pw-card" onSubmit={onChangePassword}>
-          <div className="grid-2">
-            <div>
-              <label>Mật khẩu hiện tại</label>
-              <div className="password-wrapper">
-                <input
-                  type={showPw.current ? "text" : "password"}
-                  value={pwForm.current_password}
-                  onChange={(e) =>
-                    setPwForm((p) => ({ ...p, current_password: e.target.value }))
-                  }
-                />
-                <button
-                  type="button"
-                  className="password-toggle-btn"
-                  onClick={() => setShowPw((s) => ({ ...s, current: !s.current }))}
-                  aria-label={showPw.current ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
-                  title={showPw.current ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
-                >
-                  <FontAwesomeIcon icon={showPw.current ? faEyeSlash : faEye} />
-                </button>
-              </div>
-            </div>
-
-            <div>
-              <label>Mật khẩu mới</label>
-              <div className="password-wrapper">
-                <input
-                  type={showPw.next ? "text" : "password"}
-                  value={pwForm.new_password}
-                  onChange={(e) =>
-                    setPwForm((p) => ({ ...p, new_password: e.target.value }))
-                  }
-                />
-                <button
-                  type="button"
-                  className="password-toggle-btn"
-                  onClick={() => setShowPw((s) => ({ ...s, next: !s.next }))}
-                  aria-label={showPw.next ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
-                  title={showPw.next ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
-                >
-                  <FontAwesomeIcon icon={showPw.next ? faEyeSlash : faEye} />
-                </button>
-              </div>
-            </div>
-
-            <div>
-              <label>Xác nhận mật khẩu mới</label>
-              <div className="password-wrapper">
-                <input
-                  type={showPw.confirm ? "text" : "password"}
-                  value={pwForm.confirm}
-                  onChange={(e) =>
-                    setPwForm((p) => ({ ...p, confirm: e.target.value }))
-                  }
-                />
-                <button
-                  type="button"
-                  className="password-toggle-btn"
-                  onClick={() => setShowPw((s) => ({ ...s, confirm: !s.confirm }))}
-                  aria-label={showPw.confirm ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
-                  title={showPw.confirm ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
-                >
-                  <FontAwesomeIcon icon={showPw.confirm ? faEyeSlash : faEye} />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="right">
-            <button type="button" className="ghost-btn" onClick={() => setPwOpen(false)}>
-              Hủy
-            </button>
-            <button type="submit" className="primary-btn">
-              Đổi mật khẩu
-            </button>
-          </div>
-        </form>
-      )}
-
-      {/* VIEW MODE */}
+      {/* ====== MODE: VIEW ====== */}
       {mode === "view" && (
         <>
           <div className="user-profile-info card">
@@ -398,44 +313,26 @@ export default function UserProfile() {
           </div>
 
           <div className="user-profile-toolbar">
-            <button
-              type="button"
-              className="secondary-btn"
-              onClick={() => setPwOpen((v) => !v)}
-            >
+            <button type="button" className="secondary-btn" onClick={() => setMode("changePwd")}>
               Thay đổi mật khẩu
             </button>
 
-            <button
-              type="button"
-              className="primary-btn"
-              onClick={(e) => { e.preventDefault(); e.stopPropagation(); startEdit(); }}
-            >
+            <button type="button" className="primary-btn" onClick={startEdit}>
               Chỉnh sửa thông tin
             </button>
 
-            <button
-              type="button"
-              className="logout-button"
-              onClick={handleLogout}
-            >
+            <button type="button" className="logout-button" onClick={handleLogout}>
               Đăng xuất
             </button>
 
-            {/* Nút xóa tài khoản */}
-            <button
-              type="button"
-              className="danger-btn"
-              onClick={onDeleteAccount}
-              disabled={deleting}
-            >
+            <button type="button" className="danger-btn" onClick={onDeleteAccount} disabled={deleting}>
               {deleting ? "Đang xóa..." : "Xóa tài khoản"}
             </button>
           </div>
         </>
       )}
 
-      {/* EDIT MODE */}
+      {/* ====== MODE: EDIT ====== */}
       {mode === "edit" && (
         <form id="profile-edit-form" className="card" onSubmit={onSave}>
           <div className="grid-2">
@@ -531,6 +428,98 @@ export default function UserProfile() {
             </button>
             <button type="submit" className="primary-btn">
               Cập nhật
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* ====== MODE: CHANGE PASSWORD ====== */}
+      {mode === "changePwd" && (
+        <form className="card pw-card" onSubmit={onChangePassword}>
+          <div className="grid-2">
+            <div>
+              <label>Mật khẩu hiện tại</label>
+              <div className="password-wrapper">
+                <input
+                  type={showPw.current ? "text" : "password"}
+                  value={pwForm.current_password}
+                  onChange={(e) =>
+                    setPwForm((p) => ({ ...p, current_password: e.target.value }))
+                  }
+                />
+                <button
+                  type="button"
+                  className="password-toggle-btn"
+                  onClick={() =>
+                    setShowPw((s) => ({ ...s, current: !s.current }))
+                  }
+                  aria-label={showPw.current ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+                  title={showPw.current ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+                >
+                  <FontAwesomeIcon icon={showPw.current ? faEyeSlash : faEye} />
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label>Mật khẩu mới</label>
+              <div className="password-wrapper">
+                <input
+                  type={showPw.next ? "text" : "password"}
+                  value={pwForm.new_password}
+                  onChange={(e) =>
+                    setPwForm((p) => ({ ...p, new_password: e.target.value }))
+                  }
+                />
+                <button
+                  type="button"
+                  className="password-toggle-btn"
+                  onClick={() => setShowPw((s) => ({ ...s, next: !s.next }))}
+                  aria-label={showPw.next ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+                  title={showPw.next ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+                >
+                  <FontAwesomeIcon icon={showPw.next ? faEyeSlash : faEye} />
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label>Xác nhận mật khẩu mới</label>
+              <div className="password-wrapper">
+                <input
+                  type={showPw.confirm ? "text" : "password"}
+                  value={pwForm.confirm}
+                  onChange={(e) => setPwForm((p) => ({ ...p, confirm: e.target.value }))}
+                />
+                <button
+                  type="button"
+                  className="password-toggle-btn"
+                  onClick={() =>
+                    setShowPw((s) => ({ ...s, confirm: !s.confirm }))
+                  }
+                  aria-label={showPw.confirm ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+                  title={showPw.confirm ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+                >
+                  <FontAwesomeIcon icon={showPw.confirm ? faEyeSlash : faEye} />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="right">
+            <button
+              type="button"
+              className="ghost-btn"
+              onClick={() => {
+                setMode("view");
+                setShowPw({ current: false, next: false, confirm: false });
+                setPwForm({ current_password: "", new_password: "", confirm: "" });
+              }}
+            >
+              Hủy
+            </button>
+            <button type="submit" className="primary-btn">
+              Đổi mật khẩu
             </button>
           </div>
         </form>
